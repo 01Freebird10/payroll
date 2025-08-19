@@ -1,3 +1,4 @@
+#just alter
 name: Python CI
 
 on:
@@ -15,7 +16,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.13.5'
+        python-version: 3.13.5
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
