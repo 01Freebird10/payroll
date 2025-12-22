@@ -28,8 +28,8 @@ class EmployeeManager:
                 employee_data['status']
             ))
             return True
-        except:
-            return False
+        except Exception:
+            pass
 
     def get_all_employees(self):
         query = "SELECT * FROM employees ORDER BY last_name, first_name"

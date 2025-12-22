@@ -13,8 +13,8 @@ def clear_screen():
 def display_banner():
     banner = """
     ╔══════════════════════════════════════════════════════════════╗
-    ║                    PAYROLL MANAGEMENT SYSTEM                  ║
-    ║                      Console Application                      ║
+    ║                    PAYROLL MANAGEMENT SYSTEM                 ║
+    ║                      Console Application                     ║
     ╚══════════════════════════════════════════════════════════════╝
     """
     print(banner)
@@ -22,7 +22,7 @@ def display_banner():
 
 def get_valid_input(prompt, valid_choices=None):
     while True:
-        user_input = input(prompt).strip()
+        user_input = input(prompt).stri  p()
 
         if valid_choices is None:
             return user_input

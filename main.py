@@ -8,7 +8,11 @@ from admin_auth import AdminAuth
 from employee_manager import EmployeeManager
 from salary_manager import SalaryManager
 from database import Database
-from utils import clear_screen, display_banner, get_valid_input, format_currency, format_date, create_separator
+from utils import (clear_screen,
+                   display_banner,
+                   get_valid_input,
+                   format_currency,
+                   format_date, create_separator)
 
 
 class PayrollSystem:
