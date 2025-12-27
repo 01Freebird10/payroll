@@ -22,7 +22,7 @@ def display_banner():
 
 def get_valid_input(prompt, valid_choices=None):
     while True:
-        user_input = input(prompt).stri  p()
+        user_input = input(prompt).strip()
 
         if valid_choices is None:
             return user_input
