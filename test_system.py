@@ -16,12 +16,12 @@ def test_system():
 
     # Test database initialization
     db = Database()
-    print("✓ Database initialized successfully")
+    print("[OK] Database initialized successfully")
 
     # Test admin authentication
     admin_auth = AdminAuth(db)
     assert admin_auth.authenticate('admin', 'admin123'), "Admin authentication failed"
-    print("✓ Admin authentication working")
+    print("[OK] Admin authentication working")
 
     # Test employee management
     employee_manager = EmployeeManager(db)
@@ -40,12 +40,12 @@ def test_system():
 
     result = employee_manager.add_employee(test_employee)
     assert result, "Failed to add employee"
-    print("✓ Employee addition working")
+    print("[OK] Employee addition working")
 
     # Get all employees
     employees = employee_manager.get_all_employees()
     assert len(employees) > 0, "No employees found"
-    print(f"✓ Employee retrieval working ({len(employees)} employees)")
+    print(f"[OK] Employee retrieval working ({len(employees)} employees)")
 
     # Test salary management
     salary_manager = SalaryManager(db)
@@ -62,19 +62,19 @@ def test_system():
 
         result = salary_manager.set_salary(salary_data)
         assert result, "Failed to set salary"
-        print("✓ Salary setting working")
+        print("[OK] Salary setting working")
 
         # Get salary history
         salary_history = salary_manager.get_salary_history(employees[0]['employee_id'])
         assert len(salary_history) > 0, "No salary history found"
-        print("✓ Salary history retrieval working")
+        print("[OK] Salary history retrieval working")
 
         # Process payroll
         payroll_result = salary_manager.process_payroll('2024-01')
         assert payroll_result > 0, "Payroll processing failed"
-        print(f"✓ Payroll processing working ({payroll_result} employees)")
+        print(f"[OK] Payroll processing working ({payroll_result} employees)")
 
-    print("\n🎉 All tests passed! The payroll system is working correctly.")
+    print("\n[SUCCESS] All tests passed! The payroll system is working correctly.")
 
 
 if __name__ == "__main__":

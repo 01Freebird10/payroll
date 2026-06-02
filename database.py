@@ -1,11 +1,26 @@
 import sqlite3
 import os
+import shutil
 
 
 class Database:
     def __init__(self):
-        self.db_dir = "databases"
-        self.ensure_database_directory()
+        if os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
+            self.db_dir = "/tmp/databases"
+            self.ensure_database_directory()
+            package_db_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "databases")
+            if os.path.exists(package_db_dir):
+                for f in os.listdir(package_db_dir):
+                    src = os.path.join(package_db_dir, f)
+                    dst = os.path.join(self.db_dir, f)
+                    if os.path.isfile(src) and not os.path.exists(dst):
+                        try:
+                            shutil.copy2(src, dst)
+                        except Exception:
+                            pass
+        else:
+            self.db_dir = "databases"
+            self.ensure_database_directory()
         self.init_databases()
 
     def ensure_database_directory(self):

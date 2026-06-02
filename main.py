@@ -536,6 +536,259 @@ class PayrollSystem:
 
         print("=" * 50)
 
+# Flask Web Application Setup
+from flask import Flask, render_template, request, jsonify, session
+
+app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "super-secret-payroll-key-13579")
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+@app.route('/api/status', methods=['GET'])
+def api_status():
+    return jsonify({
+        'authenticated': 'admin_logged_in' in session,
+        'username': session.get('admin_logged_in')
+    })
+
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.get_json() or {}
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+
+    db = Database()
+    admin_auth = AdminAuth(db)
+    if admin_auth.authenticate(username, password):
+        session['admin_logged_in'] = username
+        return jsonify({'success': True, 'message': 'Logged in successfully'})
+    return jsonify({'success': False, 'message': 'Invalid username or password'}), 401
+
+
+@app.route('/api/logout', methods=['POST'])
+def api_logout():
+    session.pop('admin_logged_in', None)
+    return jsonify({'success': True, 'message': 'Logged out successfully'})
+
+
+@app.route('/api/stats', methods=['GET'])
+def api_stats():
+    if 'admin_logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    db = Database()
+    employee_manager = EmployeeManager(db)
+    salary_manager = SalaryManager(db)
+
+    total_employees = employee_manager.get_employee_count()
+    stats = salary_manager.get_salary_statistics() or {}
+    dept_stats = salary_manager.get_department_salary_stats() or []
+
+    return jsonify({
+        'total_employees': total_employees,
+        'total_payroll': stats.get('total_payroll', 0),
+        'avg_base_salary': stats.get('avg_base_salary', 0),
+        'min_base_salary': stats.get('min_base_salary', 0),
+        'max_base_salary': stats.get('max_base_salary', 0),
+        'avg_net_salary': stats.get('avg_net_salary', 0),
+        'department_stats': dept_stats
+    })
+
+
+@app.route('/api/employees', methods=['GET'])
+def api_employees():
+    if 'admin_logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    search_term = request.args.get('q', '').strip()
+    db = Database()
+    employee_manager = EmployeeManager(db)
+
+    if search_term:
+        employees = employee_manager.search_employee(search_term)
+    else:
+        employees = employee_manager.get_all_employees()
+
+    return jsonify(employees)
+
+
+@app.route('/api/employees', methods=['POST'])
+def api_add_employee():
+    if 'admin_logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json() or {}
+
+    required = ['first_name', 'last_name', 'email', 'department', 'position', 'hire_date']
+    for field in required:
+        if not data.get(field):
+            return jsonify({'error': f'Field {field} is required'}), 400
+
+    employee_data = {
+        'first_name': data.get('first_name', '').strip(),
+        'last_name': data.get('last_name', '').strip(),
+        'email': data.get('email', '').strip(),
+        'phone': data.get('phone', '').strip(),
+        'department': data.get('department', '').strip(),
+        'position': data.get('position', '').strip(),
+        'hire_date': data.get('hire_date', '').strip(),
+        'status': data.get('status', 'active').strip()
+    }
+
+    db = Database()
+    employee_manager = EmployeeManager(db)
+    if employee_manager.add_employee(employee_data):
+        return jsonify({'success': True, 'message': 'Employee added successfully'})
+    return jsonify({'success': False, 'message': 'Failed to add employee (email might already exist)'}), 400
+
+
+@app.route('/api/employees/<employee_id>', methods=['PUT'])
+def api_update_employee(employee_id):
+    if 'admin_logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json() or {}
+    updates = {}
+    fields = ['first_name', 'last_name', 'email', 'phone', 'department', 'position', 'status']
+    for f in fields:
+        if f in data:
+            updates[f] = data[f]
+
+    db = Database()
+    employee_manager = EmployeeManager(db)
+    if employee_manager.update_employee(employee_id, updates):
+        return jsonify({'success': True, 'message': 'Employee updated successfully'})
+    return jsonify({'success': False, 'message': 'Failed to update employee'}), 400
+
+
+@app.route('/api/employees/<employee_id>', methods=['DELETE'])
+def api_delete_employee(employee_id):
+    if 'admin_logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    db = Database()
+    employee_manager = EmployeeManager(db)
+    if employee_manager.delete_employee(employee_id):
+        return jsonify({'success': True, 'message': 'Employee deleted successfully'})
+    return jsonify({'success': False, 'message': 'Failed to delete employee'}), 400
+
+
+@app.route('/api/employees/<employee_id>/salary-history', methods=['GET'])
+def api_salary_history(employee_id):
+    if 'admin_logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    db = Database()
+    salary_manager = SalaryManager(db)
+    history = salary_manager.get_salary_history(employee_id)
+    current = salary_manager.get_current_salary(employee_id)
+
+    return jsonify({
+        'history': history,
+        'current': current
+    })
+
+
+@app.route('/api/salaries', methods=['POST'])
+def api_set_salary():
+    if 'admin_logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json() or {}
+    employee_id = data.get('employee_id')
+
+    try:
+        base_salary = float(data.get('base_salary', 0))
+        allowances = float(data.get('allowances', 0))
+        deductions = float(data.get('deductions', 0))
+    except ValueError:
+        return jsonify({'error': 'Invalid number values for salaries, allowances, or deductions'}), 400
+
+    effective_date = data.get('effective_date', '').strip()
+    if not effective_date:
+        effective_date = datetime.now().strftime('%Y-%m-%d')
+
+    salary_data = {
+        'employee_id': employee_id,
+        'base_salary': base_salary,
+        'allowances': allowances,
+        'deductions': deductions,
+        'effective_date': effective_date
+    }
+
+    db = Database()
+    salary_manager = SalaryManager(db)
+    if salary_manager.set_salary(salary_data):
+        return jsonify({'success': True, 'message': 'Salary configured successfully'})
+    return jsonify({'success': False, 'message': 'Failed to configure salary'}), 400
+
+
+@app.route('/api/payroll/process', methods=['POST'])
+def api_process_payroll():
+    if 'admin_logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json() or {}
+    period = data.get('period', '').strip()
+    if not period:
+        period = datetime.now().strftime('%Y-%m')
+
+    db = Database()
+    salary_manager = SalaryManager(db)
+    processed_count = salary_manager.process_payroll(period)
+
+    if processed_count > 0:
+        return jsonify({'success': True, 'message': f'Payroll processed successfully for {processed_count} employees'})
+    return jsonify({'success': False, 'message': 'No eligible active employees found with configured salaries for this period.'}), 400
+
+
+@app.route('/api/payroll/report', methods=['GET'])
+def api_payroll_report():
+    if 'admin_logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    period = request.args.get('period', '').strip()
+    if not period:
+        period = datetime.now().strftime('%Y-%m')
+
+    db = Database()
+    salary_manager = SalaryManager(db)
+    report = salary_manager.get_monthly_payroll_report(period)
+
+    return jsonify({
+        'period': period,
+        'records': report
+    })
+
+
+@app.route('/api/employees/<employee_id>/payslip', methods=['GET'])
+def api_payslip(employee_id):
+    if 'admin_logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    period = request.args.get('period', '').strip()
+    if not period:
+        period = datetime.now().strftime('%Y-%m')
+
+    db = Database()
+    salary_manager = SalaryManager(db)
+    payslip = salary_manager.generate_payslip(employee_id, period)
+
+    if payslip:
+        return jsonify(payslip)
+    return jsonify({'error': f'No payslip record found for employee in period {period}'}), 404
+
+
 if __name__ == "__main__":
-    payroll_system = PayrollSystem()
-    payroll_system.run()
+    import sys
+    if "--cli" in sys.argv:
+        payroll_system = PayrollSystem()
+        payroll_system.run()
+    else:
+        print("Starting local Payroll Web Application on http://127.0.0.1:5000")
+        app.run(debug=True, port=5000)
