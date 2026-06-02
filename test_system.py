@@ -26,6 +26,11 @@ def test_system():
     # Test employee management
     employee_manager = EmployeeManager(db)
 
+    # Clean up existing test employee to ensure test is repeatable
+    for emp in employee_manager.get_all_employees():
+        if emp['email'] == 'john.doe@test.com':
+            employee_manager.delete_employee(emp['employee_id'])
+
     # Add test employee
     test_employee = {
         'first_name': 'John',
